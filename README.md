@@ -1,4 +1,4 @@
-# Slidee Backend
+# Convocial Backend
 
 This is a backend application built using Node.js, Express.js, and MongoDB to serve educational content with user authentication and other education-related features.
 
