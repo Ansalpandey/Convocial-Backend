@@ -25,8 +25,7 @@ const connectDB = async (io) => {
     const collectionsToWatch = [
       "users",
       "posts",
-      "lessons",
-      "courses",
+      "notifications",
       "comments",
     ];
 

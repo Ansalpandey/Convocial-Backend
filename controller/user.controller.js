@@ -672,8 +672,8 @@ const removeFollower = async (req, res) => {
 };
 
 const sendDeviceToken = async (req, res) => {
-  const userId = req.user._id; // Authenticated user's ID
-  const { token } = req.body; // Token from request body
+  const userId = req.user._id;
+  const { token } = req.body;
 
   try {
     const user = await User.findById(userId);
@@ -681,8 +681,6 @@ const sendDeviceToken = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
-    // Save the token in user's profile
     user.deviceToken = token;
     await user.save();
 
