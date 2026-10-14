@@ -46,7 +46,6 @@ const searchUsers = async (req, res) => {
       ],
     })
       .select("-password") // Exclude the password field from the results
-      .populate("courses") // Populate the 'courses' field with related data
       .skip((page - 1) * pageSize) // Pagination: Skip the previous pages
       .limit(pageSize) // Pagination: Limit the results to the specified page size
       .exec();
@@ -102,58 +101,13 @@ const getUsersBookmarkedPosts = async (req, res) => {
   }
 };
 
-const getUsersBookmarkedCourses = async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const pageSize = parseInt(req.query.pageSize) || 10;
-
-  try {
-    const userId = req.user._id;
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const courses = await Course.find({ bookmarkedBy: userId })
-      .populate("madeBy", "name username email profileImage")
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .exec();
-
-    const totalCourses = await Course.countDocuments({ bookmarkedBy: userId });
-
-    res.status(200).json({
-      message: "Courses retrieved successfully",
-      courses,
-      totalPages: Math.ceil(totalCourses / pageSize),
-      currentPage: page,
-    });
-  } catch (error) {
-    console.error("Error retrieving courses:", error);
-    res.status(500).json({ message: error.message });
-  }
-};
 
 const getMyProfile = async (req, res) => {
   let user;
   try {
     // Find the user by ID and exclude posts and password
     user = await User.findById(req.user._id)
-      .select("-password -posts") // Exclude posts from the profile response
-      .populate({
-        path: "courses",
-        populate: [
-          { path: "madeBy", select: "name username" },
-          { path: "enrolledBy", select: "name username" },
-        ],
-      })
-      .populate({
-        path: "enrolledCourses",
-        populate: [
-          { path: "madeBy", select: "name username" },
-          { path: "enrolledBy", select: "name username" },
-        ],
-      })
+      .select("-password -posts")
       .populate("followers", "name username profileImage")
       .populate("following", "name username profileImage");
 
@@ -231,33 +185,7 @@ const getOtherUserProfile = async (req, res) => {
   try {
     // Find the user by ID and populate the relevant fields
     const user = await User.findById(req.params.id)
-      .select("-password -posts") // Exclude password and posts
-      .populate({
-        path: "courses",
-        populate: [
-          {
-            path: "madeBy",
-            select: "name username",
-          },
-          {
-            path: "enrolledBy",
-            select: "name username",
-          },
-        ],
-      })
-      .populate({
-        path: "enrolledCourses",
-        populate: [
-          {
-            path: "madeBy",
-            select: "name username",
-          },
-          {
-            path: "enrolledBy",
-            select: "name username",
-          },
-        ],
-      })
+      .select("-password -posts")
       .populate({
         path: "posts",
         options: { sort: { createdAt: -1 } }, // Sort posts by creation date in descending order
@@ -515,44 +443,6 @@ const deleteUser = (req, res) => {
   });
 };
 
-const getUserCourses = async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const pageSize = parseInt(req.query.pageSize) || 10;
-
-  try {
-    const userId = req.user._id;
-    console.log("User ID from token:", userId); // Log the user ID for debugging
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const courses = await Course.find({ madeBy: userId })
-      .populate("madeBy", "name username")
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .exec();
-
-    if (courses.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No courses found for this user" });
-    }
-
-    const totalCourses = await Course.countDocuments({ madeBy: userId });
-
-    res.status(200).json({
-      message: "Courses retrieved successfully",
-      courses,
-      totalPages: Math.ceil(totalCourses / pageSize),
-      currentPage: page,
-    });
-  } catch (error) {
-    console.error("Error retrieving courses:", error);
-    res.status(500).json({ message: error.message });
-  }
-};
 
 const logoutUser = (req, res) => {
   res.clearCookie("token");
@@ -590,7 +480,7 @@ const refreshToken = (req, res) => {
     };
 
     const newToken = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: "15d", // Set expiration time as needed
+      expiresIn: "15d",
     });
 
     console.log("New Token:", newToken);
@@ -607,29 +497,23 @@ const followUser = async (req, res) => {
   const followerId = req.user._id;
 
   try {
-    // Check if the user is trying to follow themselves
     if (userId === followerId.toString()) {
       return res
         .status(400)
         .json({ message: "Users cannot follow themselves" });
     }
-
-    // Check if the user exists
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Check if the follower exists
     const follower = await User.findById(followerId);
     if (!follower) {
       return res.status(404).json({ message: "Follower not found" });
     }
 
-    // Check if the user is already followed
     const isFollowing = user.followers.includes(followerId);
     if (isFollowing) {
-      // Unfollow the user
       user.followers.pull(followerId);
       user.followersCount -= 1;
       await user.save();
@@ -847,7 +731,6 @@ export {
   loginUser,
   forgetPassword,
   deleteUser,
-  getUserCourses,
   logoutUser,
   getMyProfile,
   refreshToken,
@@ -859,7 +742,6 @@ export {
   editProfile,
   searchUsers,
   getUsersBookmarkedPosts,
-  getUsersBookmarkedCourses,
   requestOTP,
   verifyOTP,
   removeFollower,

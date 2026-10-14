@@ -6,7 +6,6 @@ import {
   loginUser,
   forgetPassword,
   deleteUser,
-  getUserCourses,
   logoutUser,
   getMyProfile,
   refreshToken,
@@ -18,7 +17,6 @@ import {
   editProfile,
   searchUsers,
   getUsersBookmarkedPosts,
-  getUsersBookmarkedCourses,
   requestOTP,
   verifyOTP,
   removeFollower,
@@ -62,16 +60,8 @@ router.get("/bookmarked-posts", auth, (req, res) => {
   getUsersBookmarkedPosts(req, res);
 });
 
-router.get("/bookmarked-courses", auth, (req, res) => {
-  getUsersBookmarkedCourses(req, res);
-});
-
 router.post("/logout", auth, (req, res) => {
   logoutUser(req, res);
-});
-
-router.get("/courses", auth, (req, res) => {
-  getUserCourses(req, res);
 });
 
 router.get("/profile", auth, (req, res) => {

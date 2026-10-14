@@ -37,7 +37,7 @@ app.use("/api/v1/posts/", commentRouter);
 app.use("/api/v1/notifications/", notificationRouter);
 
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "OK", message: "Server is running" });
+  res.status(200).json({ status: "OK", message: "Server is running on v1" });
 });
 
 // Start the HTTP server and Kafka consumer

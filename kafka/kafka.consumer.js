@@ -7,7 +7,7 @@ import { Kafka, logLevel } from "kafkajs";
 // const brokers = Array.from({ length: 10 }, (_, i) => `kafka-${i}.kafka.social-api.svc.cluster.local:9092`);
 const kafka = new Kafka({
   clientId: "slidee-app",
-  brokers: ["192.168.1.3:9092"],
+  brokers: ["192.168.1.30:9092"],
   logLevel: logLevel.INFO,
 });
 

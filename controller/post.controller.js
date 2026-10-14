@@ -1,7 +1,6 @@
 import { Post } from "../models/post.model.js";
 import { User } from "../models/user.model.js";
 import Notification from "../models/notification.model.js";
-// import { sendLikeNotification } from "../services/firebase-admin.js";
 import {
   uploadBase64Image,
   uploadVideoOnCloudinary,

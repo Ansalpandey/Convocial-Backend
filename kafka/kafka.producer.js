@@ -6,7 +6,7 @@ import { Kafka, logLevel } from "kafkajs";
 
 const kafka = new Kafka({
   clientId: "slidee-app",
-  brokers: ["192.168.1.3:9092"],
+  brokers: ["192.168.1.30:9092"],
   logLevel: logLevel.INFO,
 });
 
