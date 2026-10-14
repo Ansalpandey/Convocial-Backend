@@ -1,12 +1,13 @@
 import { User } from "../models/user.model.js";
 import { Post } from "../models/post.model.js";
 import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
 import crypto from "crypto";
+import { publishToQueue } from "../config/rabbitmq.config.js";
 import {
   uploadOnCloudinary,
   uploadBase64Image,
 } from "../utils/cloudinary.util.js";
+import redisClient from "../config/redis.config.js";
 
 const getUsers = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
@@ -14,7 +15,7 @@ const getUsers = async (req, res) => {
 
   try {
     const users = await User.find()
-      .select("id name username profileImage bio") // Include only the specified fields
+      .select("id name username profileImage bio")
       .skip((page - 1) * pageSize)
       .limit(pageSize)
       .exec();
@@ -100,7 +101,6 @@ const getUsersBookmarkedPosts = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 const getMyProfile = async (req, res) => {
   let user;
@@ -351,65 +351,51 @@ const loginUser = async (req, res) => {
   }
 };
 
-const requestOTP = (req, res) => {
-  const { email } = req.body;
+const requestOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
 
-  User.findOne({ email }).then((user) => {
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    // 1. Verify User
+    const user = await User.findOne({ email }).lean();
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Generate a 6-digit OTP using the crypto package
+    // 2. Generate and Store OTP in Redis (15 mins TTL)
     const otp = crypto.randomInt(100000, 999999).toString();
+    await redisClient.setEx(`otp:${email}`, 900, otp);
 
-    // Store the OTP in the user's document
-    user.resetOtp = otp;
-    user.otpExpires = Date.now() + 15 * 60 * 1000; // 15 minutes expiry
-    user.save();
+    // 3. Publish to RabbitMQ using your utility (O(1) time)
+    await publishToQueue("otp-email-queue", { email, otp });
 
-    // Send the OTP to the user's email
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL,
-        pass: process.env.PASSWORD,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL,
-      to: email,
-      subject: "Your OTP for Password Reset",
-      html: `<h2>Your OTP is ${otp}</h2><p>Please use this OTP to reset your password. It will expire in 15 minutes.</p>`,
-    };
-
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.log("Error sending email:", error);
-        return res.status(500).json({ message: "Error sending email" });
-      } else {
-        console.log("Email sent:", info.response);
-        return res.status(200).json({
-          message: "OTP sent to your email",
-        });
-      }
-    });
-  });
+    // 4. Return instantly
+    return res.status(200).json({ message: "OTP sent to your email" });
+  } catch (error) {
+    console.error("🔴 OTP Request Error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 };
 
-const verifyOTP = (req, res) => {
-  const { email, otp } = req.body;
+const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
 
-  User.findOne({ email }).then((user) => {
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    // 1. Fetch the OTP directly from Redis (Bypasses MongoDB entirely)
+    const storedOtp = await redisClient.get(`otp:${email}`);
 
-    // Check if the OTP is correct and has not expired
-    if (user.resetOtp !== otp || user.otpExpires < Date.now()) {
+    // 2. Validate OTP existence and match
+    if (!storedOtp || storedOtp !== String(otp)) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
-  });
+
+    // 3. CRITICAL: Delete the OTP immediately to prevent replay attacks
+    await redisClient.del(`otp:${email}`);
+
+    // Note: In a real flow, you would generate a temporary password-reset token here
+    // and send it to the client so they can actually change their password.
+    return res.status(200).json({ message: "OTP verified successfully" });
+  } catch (error) {
+    console.error("OTP Verification Error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 const forgetPassword = async (req, res) => {
@@ -442,7 +428,6 @@ const deleteUser = (req, res) => {
     });
   });
 };
-
 
 const logoutUser = (req, res) => {
   res.clearCookie("token");

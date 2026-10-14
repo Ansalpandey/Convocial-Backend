@@ -66,15 +66,7 @@ const userSchema = new mongoose.Schema(
     age: {
       type: Number,
       required: true,
-    },
-    resetOtp: {
-      type: String,
-      index: { expires: "15m" }, // TTL index to automatically remove the field after 15 minutes
-    },
-    otpExpires: {
-      type: Date,
-      index: { expires: "15m" }, // TTL index to automatically remove the field after 15 minutes
-    },
+    }
   },
   { timestamps: true }
 );

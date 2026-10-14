@@ -4,6 +4,7 @@
   "description": "A backend system for community based educational social media platform.",
   "type": "module",
   "dependencies": {
+    "amqplib": "^2.2.0",
     "bcrypt": "^5.1.1",
     "cloudinary": "^2.2.0",
     "cors": "^2.8.5",
@@ -18,6 +19,7 @@
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.14",
+    "redis": "^6.3.0",
     "socket.io": "^4.8.0"
   },
   "main": "index.js",
